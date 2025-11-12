@@ -1,10 +1,10 @@
 #![allow(unused)]
+mod config;
 mod core;
 mod ui;
-mod config;
 
-use core::commands::get_command_handlers;
 use config::setup::setup_app;
+use core::commands::get_command_handlers;
 use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
