@@ -9,10 +9,6 @@ export interface GreetResponse {
   message: string;
 }
 
-export interface GetUserInfoParams {
-  user_id: number;
-}
-
 // 命令调用封装类
 export class Commands {
   /**
@@ -21,15 +17,7 @@ export class Commands {
   static async greet(params: GreetParams): Promise<GreetResponse> {
     return await invoke<GreetResponse>("greet", { params });
   }
-
-  /**
-   * 获取用户信息
-   */
-  static async getUserInfo(user_id: number): Promise<string> {
-    return await invoke<string>("get_user_info", { userId: user_id });
-  }
 }
 
 // 导出便捷方法
 export const greet = Commands.greet;
-export const getUserInfo = Commands.getUserInfo;
