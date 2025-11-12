@@ -1,5 +1,5 @@
 #![allow(unused)]
-use crate::events::EventEmitter;
+use crate::core::events::EventEmitter;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 

@@ -1,29 +1,22 @@
 #![allow(unused)]
-mod commands;
-mod events;
+mod core;
+mod ui;
+mod config;
 
-use commands::get_command_handlers;
-use events::EventEmitter;
-use tauri::Manager;
+use core::commands::get_command_handlers;
+use config::setup::setup_app;
+use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--flag1", "--flag2"]),
+        ))
         .invoke_handler(get_command_handlers())
-        .setup(|app| {
-            // 初始化事件发射器
-            let emitter = EventEmitter::new(app.handle().clone());
-            app.manage(emitter);
-            
-            // 可以在这里启动后台任务，定期发送事件
-            // let app_handle = app.handle().clone();
-            // tauri::async_runtime::spawn(async move {
-            //     // 后台任务逻辑
-            // });
-            
-            Ok(())
-        })
+        .setup(setup_app)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
