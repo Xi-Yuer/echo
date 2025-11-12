@@ -47,28 +47,17 @@ function App() {
   }, []);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <main className="flex flex-col items-center justify-center h-screen">
+      <h1 className="text-3xl font-bold underline">Hello world!</h1>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleGreet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-
-      <div>
-        <button onClick={handleGetUserInfo}>Get User Info</button>
-        <p>{userInfo}</p>
+      <div className="flex flex-col items-center justify-center">
+        <button
+          className="bg-blue-500 text-white p-2 rounded-md"
+          onClick={handleGetUserInfo}
+        >
+          Get User Info
+        </button>
+        <p className="text-sm text-gray-500">{userInfo}</p>
       </div>
     </main>
   );
