@@ -5,6 +5,7 @@
 export const ROUTES = {
   HOME: "/",
   ABOUT: "/about",
+  POPOVER: "/popover",
 } as const;
 
 /**

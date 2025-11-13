@@ -13,6 +13,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "echo",
         "width": 1000,
         "height": 700,
@@ -22,6 +23,25 @@
         "maxHeight": null,
         "resizable": true,
         "center": true
+      },
+      {
+        "label": "popover",
+        "title": "",
+        "width": 400,
+        "height": 500,
+        "minWidth": 300,
+        "minHeight": 300,
+        "maxWidth": 600,
+        "maxHeight": 800,
+        "backgroundColor": "#00000000",
+        "resizable": false,
+        "decorations": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "transparent": true,
+        "center": false,
+        "url": "/popover"
       }
     ],
     "security": {

@@ -62,8 +62,9 @@ fn load_tray_icon(
 
 /// 创建并设置系统托盘
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&quit_i])?;
+    let main_i = MenuItem::with_id(app, "main", "主窗口", true, Some("CmdOrCtrl+M"))?;
+    let quit_i = MenuItem::with_id(app, "quit", "退出", true, Some("CmdOrCtrl+Q"))?;
+    let menu = Menu::with_items(app, &[&main_i, &quit_i])?;
 
     // 尝试加载自定义托盘图标
     // 可以指定图标路径，例如: "icons/32x32.png" 或 "icons/icon.png"
@@ -94,24 +95,32 @@ fn handle_tray_icon_event(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
         TrayIconEvent::Click {
             button: MouseButton::Left,
             button_state: MouseButtonState::Up,
+            position,
             ..
         } => {
-            println!("left click pressed and released");
+            println!("托盘图标被点击，位置: {:?}", position);
             let app = tray.app_handle();
 
-            if let Some(window) = app.get_webview_window("main") {
-                // 先显示窗口，这样 macOS 可以正确识别应用
-                let _ = window.unminimize();
-                let _ = window.show();
-                
-                // 在 macOS 上显示 Dock 栏图标并激活应用
-                // 注意：在显示窗口后再改变 ActivationPolicy，可以确保图标正确显示
-                #[cfg(target_os = "macos")]
-                {
-                    show_dock_icon_and_activate_with_app(&app);
+            // 获取或创建 popover 窗口
+            let popover = if let Some(window) = app.get_webview_window("popover") {
+                window
+            } else {
+                // 如果窗口不存在，创建一个新的（这种情况不应该发生，因为配置中已经定义了）
+                return;
+            };
+
+            // 切换 popover 的显示状态
+            if let Ok(is_visible) = popover.is_visible() {
+                if is_visible {
+                    // 如果已经显示，则隐藏
+                    let _ = popover.hide();
+                } else {
+                    // 如果隐藏，则显示并定位到托盘图标下方
+                    show_popover_near_tray(&app, &popover, Some(position));
                 }
-                
-                let _ = window.set_focus();
+            } else {
+                // 如果无法获取可见状态，直接显示
+                show_popover_near_tray(&app, &popover, Some(position));
             }
         }
         _ => {
@@ -120,12 +129,95 @@ fn handle_tray_icon_event(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
     }
 }
 
+/// 在托盘图标下方显示 popover
+fn show_popover_near_tray(
+    app: &AppHandle,
+    popover: &tauri::WebviewWindow,
+    tray_position: Option<tauri::PhysicalPosition<f64>>,
+) {
+    // 获取 popover 窗口的尺寸
+    if let Ok(size) = popover.inner_size() {
+        let width = size.width as f64;
+        let height = size.height as f64;
+
+        // 如果有托盘位置信息，使用它来定位 popover
+        if let Some(tray_pos) = tray_position {
+            // 托盘图标的位置
+            let tray_x = tray_pos.x;
+            let tray_y = tray_pos.y;
+
+            // 计算 popover 的位置（在托盘图标下方，居中对齐）
+            // 在 macOS 上，托盘图标在顶部菜单栏，popover 显示在下方
+            #[cfg(target_os = "macos")]
+            {
+                // macOS: 托盘在顶部，popover 显示在托盘图标正下方
+                // 居中对齐：popover 的中心对齐到托盘图标的中心
+                let popover_x = tray_x - width / 2.0;
+                // 托盘图标通常在菜单栏中，高度约为 22px，所以 popover 应该在下方约 30px 处
+                let popover_y = tray_y + 30.0;
+                let _ = popover.set_position(tauri::PhysicalPosition::new(
+                    popover_x as i32,
+                    popover_y as i32,
+                ));
+            }
+
+            // 在其他平台上，也显示在托盘图标下方
+            #[cfg(not(target_os = "macos"))]
+            {
+                // 其他平台：托盘通常在任务栏，popover 显示在上方或下方
+                // 假设托盘在底部，popover 显示在上方
+                let popover_x = tray_x - width / 2.0;
+                let popover_y = tray_y - height - 10.0; // 托盘图标上方 10px
+                let _ = popover.set_position(tauri::PhysicalPosition::new(
+                    popover_x as i32,
+                    popover_y as i32,
+                ));
+            }
+        } else {
+            // 如果没有托盘位置信息，使用屏幕右上角（macOS）或右下角（其他平台）
+            if let Ok(Some(monitor)) = app.primary_monitor() {
+                let screen_size = monitor.size();
+                let screen_width = screen_size.width as f64;
+                let screen_height = screen_size.height as f64;
+
+                #[cfg(target_os = "macos")]
+                {
+                    // macOS: 显示在右上角下方
+                    let popover_x = screen_width - width - 20.0;
+                    let popover_y = 40.0;
+                    let _ = popover.set_position(tauri::PhysicalPosition::new(
+                        popover_x as i32,
+                        popover_y as i32,
+                    ));
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    // 其他平台: 显示在右下角
+                    let popover_x = screen_width - width - 20.0;
+                    let popover_y = screen_height - height - 20.0;
+                    let _ = popover.set_position(tauri::PhysicalPosition::new(
+                        popover_x as i32,
+                        popover_y as i32,
+                    ));
+                }
+            }
+        }
+    }
+
+    // 显示并聚焦 popover
+    let _ = popover.show();
+    let _ = popover.set_focus();
+}
+
 /// 在 macOS 上隐藏 Dock 栏图标
 #[cfg(target_os = "macos")]
 pub fn hide_dock_icon() {
     unsafe {
         let app = NSApplication::sharedApplication(cocoa::base::nil);
-        app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyAccessory);
+        app.setActivationPolicy_(
+            NSApplicationActivationPolicy::NSApplicationActivationPolicyAccessory,
+        );
     }
 }
 
@@ -134,7 +226,9 @@ pub fn hide_dock_icon() {
 pub fn show_dock_icon() {
     unsafe {
         let app = NSApplication::sharedApplication(cocoa::base::nil);
-        app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular);
+        app.setActivationPolicy_(
+            NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular,
+        );
     }
 }
 
@@ -143,7 +237,9 @@ pub fn show_dock_icon() {
 pub fn show_dock_icon_and_activate() {
     unsafe {
         let app = NSApplication::sharedApplication(cocoa::base::nil);
-        app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular);
+        app.setActivationPolicy_(
+            NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular,
+        );
         app.activateIgnoringOtherApps_(cocoa::base::YES);
     }
 }
@@ -161,11 +257,13 @@ fn show_dock_icon_and_activate_with_app(_app_handle: &AppHandle) {
 
     unsafe {
         let app = NSApplication::sharedApplication(cocoa::base::nil);
-        
+
         // 恢复为常规应用（显示 Dock 图标）
         // 使用 cocoa crate 提供的类型安全 API
-        app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular);
-        
+        app.setActivationPolicy_(
+            NSApplicationActivationPolicy::NSApplicationActivationPolicyRegular,
+        );
+
         // 激活应用（确保图标正确显示）
         // 这会强制 macOS 重新读取应用 bundle 中的图标信息
         app.activateIgnoringOtherApps_(cocoa::base::YES);
@@ -175,6 +273,21 @@ fn show_dock_icon_and_activate_with_app(_app_handle: &AppHandle) {
 /// 处理托盘菜单事件
 fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     match event.id.as_ref() {
+        "main" => {
+            println!("main menu item was clicked");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                // 隐藏 popover
+                if let Some(popover) = app.get_webview_window("popover") {
+                    let _ = popover.hide();
+                }
+                // 激活应用
+                show_dock_icon_and_activate_with_app(app);
+                // 显示 dock 图标
+                show_dock_icon();
+            }
+        }
         "quit" => {
             println!("quit menu item was clicked");
             app.exit(0);
