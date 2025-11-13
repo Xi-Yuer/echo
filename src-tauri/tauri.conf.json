@@ -11,6 +11,7 @@
     "removeUnusedCommands": true
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
@@ -39,7 +40,7 @@
         "skipTaskbar": true,
         "alwaysOnTop": true,
         "visible": false,
-        "transparent": true,
+        "transparent": false,
         "center": false,
         "url": "/popover"
       }

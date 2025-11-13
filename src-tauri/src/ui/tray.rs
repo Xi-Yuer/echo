@@ -98,7 +98,6 @@ fn handle_tray_icon_event(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
             position,
             ..
         } => {
-            println!("托盘图标被点击，位置: {:?}", position);
             let app = tray.app_handle();
 
             // 获取或创建 popover 窗口
@@ -123,9 +122,7 @@ fn handle_tray_icon_event(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
                 show_popover_near_tray(&app, &popover, Some(position));
             }
         }
-        _ => {
-            println!("unhandled event {event:?}");
-        }
+        _ => {}
     }
 }
 
